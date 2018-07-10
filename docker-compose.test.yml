@@ -1,0 +1,40 @@
+version: '2'
+services:
+
+  server:
+    extends:
+      file: docker-compose.yml
+      service: server
+    container_name: test-server-api
+
+  server-fake:
+    image: ${REPOSITORY_SERVER_FAKE}:${TAG_DEPLOY}
+    ports:
+      - 8033:80
+    container_name: test-server-fake
+    networks:
+      default:
+        aliases:
+          - next.json-generator.com
+    volumes:
+      - ./docker/server-fake/intercepted-route:/app/intercepted-route
+
+  mysql:
+    extends:
+      file: docker-compose.yml
+      service: mysql
+    container_name: test-mysql
+    networks:
+      default:
+        aliases:
+          - local.db.com
+
+  test:
+    image: ${REPOSITORY_TEST}:${TAG_DEPLOY}
+    volumes:
+      - ./docker/node/e2e:/app/e2e
+    depends_on:
+       - mysql
+       - server
+       - server-fake
+    command: "/tmp/wait-for-it.sh local.db.com:3306 -t 50 -- /app/runtest.sh"
